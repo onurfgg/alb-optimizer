@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assembly Line Balancing (ALB) Optimizer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #6d28d9;
+            --bg-dark: #0f172a; 
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc; 
+            --text-muted: #94a3b8; 
+            --accent: #10b981; 
+            --danger: #ef4444; 
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+
+        body {
+            margin: 0; font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at top center, #1e293b, #0f172a);
+            color: var(--text-main); 
+            display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh; padding: 40px 20px; overflow-x: hidden;
+        }
+
+        .social-sidebar {
+            position: fixed; top: 30px; left: 30px;
+            display: flex; flex-direction: column; gap: 20px; z-index: 1000;
+        }
+        .social-sidebar a {
+            color: var(--text-muted); font-size: 26px; transition: 0.3s;
+            background: rgba(255,255,255,0.03); width: 50px; height: 50px; 
+            display: flex; align-items: center; justify-content: center; border-radius: 12px;
+            border: 1px solid var(--glass-border); text-decoration: none; backdrop-filter: blur(10px);
+        }
+        .social-sidebar a:hover { color: var(--primary); transform: translateX(5px); border-color: var(--primary); background: rgba(139, 92, 246, 0.1); }
+
+        .wrapper { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 25px; }
+
+        .project-header { text-align: center; padding: 10px 0 20px 0; }
+        .project-header i { font-size: 50px; color: var(--primary); margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.4));}
+        .project-header h1 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+        .project-header p { max-width: 800px; margin: 15px auto; font-size: 15px; color: var(--text-muted); line-height: 1.6; font-weight: 400;}
+
+        .main-grid { display: grid; grid-template-columns: 400px 1fr; gap: 25px; }
+
+        .panel {
+            background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(20px);
+            display: flex; flex-direction: column; gap: 20px; height: fit-content;
+        }
+
+        .panel-title { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: white; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;}
+        .panel-title i { color: var(--primary); }
+
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        .input-group label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;}
+        .input-field {
+            padding: 12px 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            border-radius: 8px; font-size: 14px; font-weight: 700; color: white; outline: none; font-family: 'Inter'; transition: 0.2s; width: 100%;
+        }
+        .input-field:focus { border-color: var(--primary); background: rgba(139, 92, 246, 0.05); }
+
+        .flex-row { display: flex; gap: 15px; }
+
+        .task-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding-right: 5px;}
+        .task-row {
+            display: grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap: 8px;
+            background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);
+            align-items: center;
+        }
+        .btn-remove {
+            background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);
+            width: 35px; height: 35px; border-radius: 8px; cursor: pointer; transition: 0.2s;
+            display: flex; justify-content: center; align-items: center; margin-top: 20px;
+        }
+        .btn-remove:hover { background: var(--danger); color: white; }
+
+        .btn {
+            width: 100%; padding: 14px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; transition: 0.3s;
+            display: flex; justify-content: center; align-items: center; gap: 8px; border: none; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn-solve { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3); }
+        .btn-solve:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(139, 92, 246, 0.5); }
+        .btn-add { background: transparent; border: 1px dashed var(--primary); color: var(--primary); }
+        .btn-add:hover { background: rgba(139, 92, 246, 0.1); }
+
+        /* Analitik Kutular */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-box { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; text-align: center;}
+        .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 8px;}
+        .stat-val { font-size: 24px; font-weight: 900; color: white; font-family: monospace;}
+        .stat-val.takt { color: var(--primary); }
+        .stat-val.eff { color: var(--accent); }
+
+        /* İş İstasyonları (Workstations) */
+        #result-panel { display: none; flex-direction: column; gap: 20px; animation: fadeIn 0.5s ease; }
+        .workstations-container { display: flex; flex-direction: column; gap: 15px; }
+        
+        .station-card {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-left: 4px solid var(--primary);
+            border-radius: 12px; padding: 20px;
+        }
+        .station-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .station-title { font-size: 16px; font-weight: 800; color: white; }
+        .station-time { font-size: 14px; font-weight: 700; color: var(--text-muted); font-family: monospace; }
+        .station-time span { color: var(--warning); }
+
+        .progress-container { width: 100%; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; margin-bottom: 15px; }
+        .progress-bar { height: 100%; background: var(--accent); transition: width 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .progress-bar.overloaded { background: var(--danger); }
+
+        .assigned-tasks { display: flex; flex-wrap: wrap; gap: 10px; }
+        .task-badge {
+            background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); color: white;
+            padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; font-family: monospace;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 950px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .social-sidebar { position: relative; top: 0; left: 0; flex-direction: row; justify-content: center; margin-bottom: 20px;}
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="social-sidebar">
+        <a href="https://linkedin.com/in/onurfurkan" target="_blank" title="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+        <a href="https://github.com/onurfgg" target="_blank" title="GitHub"><i class="fa-brands fa-github"></i></a>
+    </div>
+
+    <div class="wrapper">
+        
+        <header class="project-header">
+            <i class="fa-solid fa-conveyor-belt"></i>
+            <h1>Assembly Line Balancing Optimizer</h1>
+            <p>Üretim hatlarındaki darboğazları çözen sezgisel karar destek sistemi. Takt Time'ı hesaplayın, operasyonları "En Uzun İşlem Süresi (LOT)" kuralına göre istasyonlara dağıtın ve hat verimliliğini (Line Efficiency) maksimize edin.</p>
+        </header>
+
+        <div class="main-grid">
+            
+            <div class="panel">
+                <div class="panel-title"><i class="fa-solid fa-sliders"></i> Hat Parametreleri</div>
+                
+                <div class="flex-row">
+                    <div class="input-group" style="flex: 1;">
+                        <label>Vardiya Süresi (Dk)</label>
+                        <input type="number" id="avail-time" class="input-field" value="480" min="1">
+                    </div>
+                    <div class="input-group" style="flex: 1;">
+                        <label>Üretim Talebi (Adet)</label>
+                        <input type="number" id="demand" class="input-field" value="80" min="1">
+                    </div>
+                </div>
+
+                <div class="panel-title" style="margin-top: 10px;"><i class="fa-solid fa-list-check"></i> Operasyon Matrisi</div>
+                
+                <div class="task-list" id="task-container">
+                    </div>
+
+                <div class="flex-row">
+                    <button class="btn btn-add" onclick="addTaskRow()"><i class="fa-solid fa-plus"></i> Operasyon Ekle</button>
+                    <button class="btn btn-solve" onclick="solveALB()"><i class="fa-solid fa-gears"></i> Hattı Dengele</button>
+                </div>
+            </div>
+
+            <div class="panel" style="background: transparent; border: none; box-shadow: none; padding: 0;">
+                
+                <div id="result-panel">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Takt Time</div>
+                            <div class="stat-val takt" id="res-takt">0.0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Teorik Min İstasyon</div>
+                            <div class="stat-val" id="res-min-st">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Gerçek İstasyon</div>
+                            <div class="stat-val" id="res-act-st" style="color: var(--warning);">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Hat Verimliliği</div>
+                            <div class="stat-val eff" id="res-eff">%0</div>
+                        </div>
+                    </div>
+
+                    <div class="workstations-container" id="workstations-area">
+                        </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // Klasik bir ALB varsayılan veri seti
+        const defaultTasks = [
+            { id: 'A', dur: 2.5, pred: '' },
+            { id: 'B', dur: 3.2, pred: 'A' },
+            { id: 'C', dur: 4.1, pred: 'A' },
+            { id: 'D', dur: 1.5, pred: 'B' },
+            { id: 'E', dur: 2.8, pred: 'C' },
+            { id: 'F', dur: 3.0, pred: 'D, E' },
+            { id: 'G', dur: 1.2, pred: 'F' },
+            { id: 'H', dur: 2.0, pred: 'G' }
+        ];
+
+        window.onload = () => {
+            const container = document.getElementById('task-container');
+            defaultTasks.forEach(task => {
+                container.appendChild(createRowHTML(task.id, task.dur, task.pred));
+            });
+        };
+
+        function createRowHTML(id = '', dur = '', pred = '') {
+            const row = document.createElement('div');
+            row.className = 'task-row';
+            row.innerHTML = `
+                <div class="input-group">
+                    <label>ID</label>
+                    <input type="text" class="input-field task-id" value="${id}" placeholder="Örn: A">
+                </div>
+                <div class="input-group">
+                    <label>Süre(Dk)</label>
+                    <input type="number" class="input-field task-dur" value="${dur}" min="0" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label>Öncüller</label>
+                    <input type="text" class="input-field task-pred" value="${pred}" placeholder="A, B">
+                </div>
+                <button class="btn-remove" onclick="this.parentElement.remove()" title="Sil"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+            return row;
+        }
+
+        function addTaskRow() {
+            document.getElementById('task-container').appendChild(createRowHTML());
+        }
+
+        // --- ALB SEZGİSEL ALGORİTMASI (Longest Operating Time - LOT) ---
+        function solveALB() {
+            const availTime = parseFloat(document.getElementById('avail-time').value);
+            const demand = parseFloat(document.getElementById('demand').value);
+
+            if (isNaN(availTime) || isNaN(demand) || demand <= 0 || availTime <= 0) {
+                alert("Lütfen geçerli bir vardiya süresi ve talep girin.");
+                return;
+            }
+
+            // 1. Takt Time Hesapla
+            const taktTime = availTime / demand;
+
+            // 2. Görevleri Oku
+            const rows = document.querySelectorAll('.task-row');
+            let tasks = [];
+            let totalTaskTime = 0;
+
+            try {
+                rows.forEach(row => {
+                    let id = row.querySelector('.task-id').value.trim().toUpperCase();
+                    let durStr = row.querySelector('.task-dur').value;
+                    let predStr = row.querySelector('.task-pred').value;
+
+                    if (!id) throw new Error("Aktivite ID'leri boş bırakılamaz.");
+                    let duration = parseFloat(durStr);
+                    if (isNaN(duration) || duration <= 0) throw new Error(`'${id}' için geçerli bir süre girin.`);
+                    
+                    // Darboğaz kontrolü: Hiçbir görev Takt Time'dan büyük olamaz (Eğer paralel istasyon kullanılmıyorsa)
+                    if (duration > taktTime) {
+                        throw new Error(`'${id}' görevinin süresi (${duration}) Takt Time'dan (${taktTime.toFixed(2)}) büyüktür. Bu hat bu talebi karşılayamaz.`);
+                    }
+
+                    let predecessors = predStr ? predStr.split(',').map(s => s.trim().toUpperCase()).filter(s => s !== "") : [];
+                    
+                    totalTaskTime += duration;
+                    tasks.push({ id, duration, predecessors });
+                });
+
+                if (tasks.length === 0) throw new Error("Lütfen en az bir aktivite ekleyin.");
+
+                // 3. LOT Heuristic Algoritması
+                let unassignedTasks = [...tasks];
+                let assignedTaskIds = new Set();
+                let workstations = [];
+
+                while (unassignedTasks.length > 0) {
+                    let currentStationTime = 0;
+                    let currentStationTasks = [];
+
+                    while (true) {
+                        // İstasyon için uygun (Öncülleri atanmış ve süresi Takt'ı aşmayan) görevleri bul
+                        let eligibleTasks = unassignedTasks.filter(t => {
+                            let predsMet = t.predecessors.every(p => assignedTaskIds.has(p));
+                            let timeFits = (currentStationTime + t.duration) <= taktTime + 0.0001; // Yuvarlama payı
+                            return predsMet && timeFits;
+                        });
+
+                        if (eligibleTasks.length === 0) break; // Bu istasyona daha fazla görev sığmıyor
+
+                        // LOT Kuralı: Uygun görevler arasından süresi en uzun olanı seç
+                        eligibleTasks.sort((a, b) => b.duration - a.duration);
+                        let selectedTask = eligibleTasks[0];
+
+                        // Görevi istasyona ata
+                        currentStationTasks.push(selectedTask);
+                        currentStationTime += selectedTask.duration;
+                        assignedTaskIds.add(selectedTask.id);
+
+                        // Atanan görevi listeden çıkar
+                        unassignedTasks = unassignedTasks.filter(t => t.id !== selectedTask.id);
+                    }
+
+                    // İstasyonu kaydet
+                    workstations.push({
+                        tasks: currentStationTasks,
+                        totalTime: currentStationTime
+                    });
+
+                    // Sonsuz döngü koruması (Mantıksal hata/kısırdöngü varsa)
+                    if (currentStationTasks.length === 0) {
+                        throw new Error("Öncül kısıtlarında döngü tespit edildi. Lütfen öncülleri kontrol edin.");
+                    }
+                }
+
+                // 4. Metrikleri Hesapla
+                const minStations = Math.ceil(totalTaskTime / taktTime);
+                const actualStations = workstations.length;
+                const efficiency = (totalTaskTime / (actualStations * taktTime)) * 100;
+
+                // 5. Arayüzü Güncelle
+                renderResults(taktTime, minStations, actualStations, efficiency, workstations);
+
+            } catch (error) {
+                alert("Hata: " + error.message);
+            }
+        }
+
+        // --- ARAYÜZ GÖRSELLEŞTİRİCİ ---
+        function renderResults(taktTime, minSt, actSt, eff, workstations) {
+            document.getElementById('result-panel').style.display = 'flex';
+            
+            document.getElementById('res-takt').innerText = taktTime.toFixed(2);
+            document.getElementById('res-min-st').innerText = minSt;
+            document.getElementById('res-act-st').innerText = actSt;
+            
+            // Verimlilik sayacını animasyonlu saydır
+            let effElement = document.getElementById('res-eff');
+            let start = 0;
+            let interval = setInterval(() => {
+                start += 2;
+                if (start >= eff) {
+                    effElement.innerText = "%" + eff.toFixed(1);
+                    clearInterval(interval);
+                } else {
+                    effElement.innerText = "%" + start.toFixed(1);
+                }
+            }, 20);
+
+            // İstasyon Kartlarını Çiz
+            const wsArea = document.getElementById('workstations-area');
+            wsArea.innerHTML = '';
+
+            workstations.forEach((ws, index) => {
+                let utilPercent = (ws.totalTime / taktTime) * 100;
+                let progressColorClass = utilPercent > 95 ? "overloaded" : "";
+
+                let taskBadges = ws.tasks.map(t => `<div class="task-badge">${t.id} (${t.duration})</div>`).join('');
+
+                let card = document.createElement('div');
+                card.className = 'station-card';
+                card.innerHTML = `
+                    <div class="station-header">
+                        <div class="station-title">Workstation ${index + 1}</div>
+                        <div class="station-time"><span>${ws.totalTime.toFixed(2)}</span> / ${taktTime.toFixed(2)} Dk</div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar ${progressColorClass}" style="width: 0%"></div>
+                    </div>
+                    <div class="assigned-tasks">
+                        ${taskBadges}
+                    </div>
+                `;
+                wsArea.appendChild(card);
+
+                // Progress Bar Animasyonu (DOM'a eklendikten sonra tetiklenmeli)
+                setTimeout(() => {
+                    card.querySelector('.progress-bar').style.width = utilPercent + '%';
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html>
