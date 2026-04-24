@@ -211,7 +211,6 @@
     </div>
 
     <script>
-        // Klasik bir ALB varsayılan veri seti
         const defaultTasks = [
             { id: 'A', dur: 2.5, pred: '' },
             { id: 'B', dur: 3.2, pred: 'A' },
@@ -255,7 +254,6 @@
             document.getElementById('task-container').appendChild(createRowHTML());
         }
 
-        // --- ALB SEZGİSEL ALGORİTMASI (Longest Operating Time - LOT) ---
         function solveALB() {
             const availTime = parseFloat(document.getElementById('avail-time').value);
             const demand = parseFloat(document.getElementById('demand').value);
@@ -265,13 +263,11 @@
                 return;
             }
 
-            // 1. Takt Time Hesapla
             const taktTime = availTime / demand;
-
-            // 2. Görevleri Oku
             const rows = document.querySelectorAll('.task-row');
             let tasks = [];
             let totalTaskTime = 0;
+            let bottlenecks = []; // Darboğazları yakalamak için liste
 
             try {
                 rows.forEach(row => {
@@ -283,9 +279,9 @@
                     let duration = parseFloat(durStr);
                     if (isNaN(duration) || duration <= 0) throw new Error(`'${id}' için geçerli bir süre girin.`);
                     
-                    // Darboğaz kontrolü: Hiçbir görev Takt Time'dan büyük olamaz (Eğer paralel istasyon kullanılmıyorsa)
+                    // Darboğaz kontrolü: Hata fırlatmak yerine listeye ekle
                     if (duration > taktTime) {
-                        throw new Error(`'${id}' görevinin süresi (${duration}) Takt Time'dan (${taktTime.toFixed(2)}) büyüktür. Bu hat bu talebi karşılayamaz.`);
+                        bottlenecks.push({ id, duration });
                     }
 
                     let predecessors = predStr ? predStr.split(',').map(s => s.trim().toUpperCase()).filter(s => s !== "") : [];
@@ -296,7 +292,13 @@
 
                 if (tasks.length === 0) throw new Error("Lütfen en az bir aktivite ekleyin.");
 
-                // 3. LOT Heuristic Algoritması
+                // Eğer hatta bir darboğaz varsa, simülasyonu "Darboğaz Durumu" olarak göster ve durdur
+                if (bottlenecks.length > 0) {
+                    renderBottleneckError(taktTime, bottlenecks);
+                    return; 
+                }
+
+                // Darboğaz yoksa normal LOT algoritmasına devam et
                 let unassignedTasks = [...tasks];
                 let assignedTaskIds = new Set();
                 let workstations = [];
@@ -306,46 +308,38 @@
                     let currentStationTasks = [];
 
                     while (true) {
-                        // İstasyon için uygun (Öncülleri atanmış ve süresi Takt'ı aşmayan) görevleri bul
                         let eligibleTasks = unassignedTasks.filter(t => {
                             let predsMet = t.predecessors.every(p => assignedTaskIds.has(p));
-                            let timeFits = (currentStationTime + t.duration) <= taktTime + 0.0001; // Yuvarlama payı
+                            let timeFits = (currentStationTime + t.duration) <= taktTime + 0.0001;
                             return predsMet && timeFits;
                         });
 
-                        if (eligibleTasks.length === 0) break; // Bu istasyona daha fazla görev sığmıyor
+                        if (eligibleTasks.length === 0) break; 
 
-                        // LOT Kuralı: Uygun görevler arasından süresi en uzun olanı seç
                         eligibleTasks.sort((a, b) => b.duration - a.duration);
                         let selectedTask = eligibleTasks[0];
 
-                        // Görevi istasyona ata
                         currentStationTasks.push(selectedTask);
                         currentStationTime += selectedTask.duration;
                         assignedTaskIds.add(selectedTask.id);
 
-                        // Atanan görevi listeden çıkar
                         unassignedTasks = unassignedTasks.filter(t => t.id !== selectedTask.id);
                     }
 
-                    // İstasyonu kaydet
                     workstations.push({
                         tasks: currentStationTasks,
                         totalTime: currentStationTime
                     });
 
-                    // Sonsuz döngü koruması (Mantıksal hata/kısırdöngü varsa)
                     if (currentStationTasks.length === 0) {
                         throw new Error("Öncül kısıtlarında döngü tespit edildi. Lütfen öncülleri kontrol edin.");
                     }
                 }
 
-                // 4. Metrikleri Hesapla
                 const minStations = Math.ceil(totalTaskTime / taktTime);
                 const actualStations = workstations.length;
                 const efficiency = (totalTaskTime / (actualStations * taktTime)) * 100;
 
-                // 5. Arayüzü Güncelle
                 renderResults(taktTime, minStations, actualStations, efficiency, workstations);
 
             } catch (error) {
@@ -353,7 +347,41 @@
             }
         }
 
-        // --- ARAYÜZ GÖRSELLEŞTİRİCİ ---
+        // --- YENİ EKLENEN DARBOĞAZ EKRANI FONKSİYONU ---
+        function renderBottleneckError(taktTime, bottlenecks) {
+            document.getElementById('result-panel').style.display = 'flex';
+            
+            // Üst metrikleri güncelle (Hata durumu olduğu için çizgi koyuyoruz)
+            document.getElementById('res-takt').innerText = taktTime.toFixed(2);
+            document.getElementById('res-min-st').innerText = "-";
+            document.getElementById('res-act-st').innerText = "-";
+            document.getElementById('res-eff').innerText = "%0";
+
+            const wsArea = document.getElementById('workstations-area');
+            
+            // Hatalı görevlerin rozetlerini oluştur
+            let bottleneckHTML = bottlenecks.map(b => 
+                `<div class="task-badge" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger); color: #f8fafc;">${b.id} (${b.duration} Dk)</div>`
+            ).join('');
+
+            // Kırmızı Hata Kartı
+            wsArea.innerHTML = `
+                <div class="station-card" style="border-left-color: var(--danger); background: rgba(239, 68, 68, 0.05);">
+                    <div class="station-header">
+                        <div class="station-title" style="color: var(--danger);">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Kritik Darboğaz Tespit Edildi
+                        </div>
+                    </div>
+                    <p style="font-size: 14px; color: var(--text-main); line-height: 1.6; margin-top: 0; margin-bottom: 20px;">
+                        Hesaplanan <strong>Takt Time (${taktTime.toFixed(2)} Dk)</strong>, aşağıdaki operasyonların tekil işlem süresinden daha kısadır. Bu talep hızında (Takt Time'da) hattın dengelenebilmesi matematiksel olarak imkansızdır. Bu görevlerin işlem süreleri iyileştirilmeli veya paralel istasyonlar kurulmalıdır.
+                    </p>
+                    <div class="assigned-tasks">
+                        ${bottleneckHTML}
+                    </div>
+                </div>
+            `;
+        }
+
         function renderResults(taktTime, minSt, actSt, eff, workstations) {
             document.getElementById('result-panel').style.display = 'flex';
             
@@ -361,7 +389,6 @@
             document.getElementById('res-min-st').innerText = minSt;
             document.getElementById('res-act-st').innerText = actSt;
             
-            // Verimlilik sayacını animasyonlu saydır
             let effElement = document.getElementById('res-eff');
             let start = 0;
             let interval = setInterval(() => {
@@ -374,7 +401,6 @@
                 }
             }, 20);
 
-            // İstasyon Kartlarını Çiz
             const wsArea = document.getElementById('workstations-area');
             wsArea.innerHTML = '';
 
@@ -400,7 +426,6 @@
                 `;
                 wsArea.appendChild(card);
 
-                // Progress Bar Animasyonu (DOM'a eklendikten sonra tetiklenmeli)
                 setTimeout(() => {
                     card.querySelector('.progress-bar').style.width = utilPercent + '%';
                 }, 100);
